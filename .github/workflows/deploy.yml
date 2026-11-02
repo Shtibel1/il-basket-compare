@@ -22,6 +22,12 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      # The upstream repo publishes the nationwide site (every city, with a city
+      # picker). Repos created from the template publish their own city, unless
+      # they set the repository variable HOSTED to true.
+      HOSTED: ${{ github.repository == 'Shtibel1/il-basket-compare' || vars.HOSTED == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,27 +35,47 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt
+
+      # Nationwide site: every chain's branches and prices, one data file per city.
+      - name: Download every city's prices
+        if: env.HOSTED == 'true'
+        run: python -m pricecompare national --out web/data
+      - name: Render the nationwide site
+        if: env.HOSTED == 'true'
+        run: |
+          python -m pricecompare render --hosted --out dist
+          du -sh dist
+          if [ -n "$(find dist -size +95M)" ]; then echo "a file is over the Pages limit"; exit 1; fi
+
+      # Single-city site (template forks).
       # Yesterday's snapshot lets stores whose new file isn't out yet keep their prices.
       - name: Restore the previous price snapshot
+        if: env.HOSTED != 'true'
         uses: actions/cache/restore@v4
         with:
           path: web/data.json
           key: prices-${{ github.run_id }}
           restore-keys: prices-
       - name: Download today's prices
+        if: env.HOSTED != 'true'
         run: python -m pricecompare update
-      - uses: actions/cache/save@v4
+      - if: env.HOSTED != 'true'
+        uses: actions/cache/save@v4
         with:
           path: web/data.json
           key: prices-${{ github.run_id }}
       - name: Thumbnails cache (only used when images are on)
+        if: env.HOSTED != 'true'
         uses: actions/cache@v4
         with:
           path: .cache/thumbs
           key: thumbs-${{ github.run_id }}
           restore-keys: thumbs-
-      - run: python -m pricecompare images
-      - run: python -m pricecompare render --out dist
+      - if: env.HOSTED != 'true'
+        run: python -m pricecompare images
+      - if: env.HOSTED != 'true'
+        run: python -m pricecompare render --out dist
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

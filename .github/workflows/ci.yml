@@ -18,3 +18,5 @@ jobs:
       - run: pytest -q
       - name: Render the site on the sample data
         run: python -m pricecompare render --out dist && test -s dist/index.html && test -s dist/data.json
+      - name: Render the hosted site on the sample data
+        run: python -m pricecompare render --hosted --out dist-hosted && test -s dist-hosted/data/index.json && test -s dist-hosted/settlements.json

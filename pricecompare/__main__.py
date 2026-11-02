@@ -4,6 +4,8 @@
     python -m pricecompare images [--cache .cache/thumbs]
     python -m pricecompare render [--out dist]
     python -m pricecompare serve  [--port 8000]
+    python -m pricecompare national [--out web/data] [--skip-download]   (hosted nationwide site)
+    python -m pricecompare render --hosted [--out dist]
 """
 
 import argparse
@@ -33,6 +35,11 @@ def main(argv=None):
     im.add_argument("--cache", default=os.path.join(ROOT, ".cache", "thumbs"))
     rd = sub.add_parser("render", help="build the static site into dist/")
     rd.add_argument("--out", default=DIST_DIR)
+    rd.add_argument("--hosted", action="store_true", help="the nationwide site: city picker + data/ shards")
+    na = sub.add_parser("national", help="download every chain's prices and write per-city shards")
+    na.add_argument("--out", default=os.path.join(WEB_DIR, "data"))
+    na.add_argument("--cache", default=os.path.join(ROOT, ".cache", "national"))
+    na.add_argument("--skip-download", action="store_true", help="only re-shard what is already cached")
     sv = sub.add_parser("serve", help="render and serve the site locally")
     sv.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
@@ -40,6 +47,14 @@ def main(argv=None):
     if args.cmd == "init":
         from . import wizard
         return wizard.run(args.city, yes=args.yes, extra_names=args.also)
+    if args.cmd == "national":
+        from . import nationwide
+        nationwide.main(args.out, args.cache, skip_download=args.skip_download)
+        return 0
+    if args.cmd == "render" and args.hosted:
+        from . import site
+        print(site.render(config.hosted(), args.out, hosted=True))
+        return 0
     try:
         cfg = config.load()
     except config.ConfigError as e:

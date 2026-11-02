@@ -9,7 +9,11 @@
   <a href="README.he.md"><img src="https://img.shields.io/badge/README-עברית-ffd233" alt="עברית"></a>
 </p>
 
-**il-basket-compare** is a template for a supermarket price-comparison site for any Israeli city. Shoppers build a basket and see which supermarket near them sells it for the least. The data comes from the price files that every large chain must publish under the Price Transparency Law. A daily GitHub Actions job downloads them, and the site is served from GitHub Pages. There are no servers, no database and no API keys.
+### 🛒 Use it now: **[shtibel1.github.io/il-basket-compare](https://shtibel1.github.io/il-basket-compare/)**
+
+Type your city (or tap *use my location*) and compare your basket across every supermarket branch nearby. One free site for the whole country, updated daily. No fork needed. Share a city directly with `?city=<CBS code>`, e.g. [`?city=7400`](https://shtibel1.github.io/il-basket-compare/?city=7400) for Netanya.
+
+**il-basket-compare** is also a template for a supermarket price-comparison site for any Israeli city. Shoppers build a basket and see which supermarket near them sells it for the least. The data comes from the price files that every large chain must publish under the Price Transparency Law. A daily GitHub Actions job downloads them, and the site is served from GitHub Pages. There are no servers, no database and no API keys.
 
 <p align="center">
   <img src="docs/screenshot-desktop.png" alt="Desktop: basket and ranking of supermarkets" width="72%">
@@ -26,7 +30,24 @@
 - **Config-driven**: city, chains and branding live in [`site.config.json`](site.config.json).
 - **Setup wizard**: `python -m pricecompare init` finds your city's CBS code and the branches of every chain.
 
-## Quick start
+## Hosted nationwide mode
+
+The upstream repo publishes one site for every city. The daily job runs `python -m pricecompare national`, which:
+
+1. downloads every chain's branch list and places each branch in a CBS locality (by the locality code in the chain's Stores file, or by the locality name in the branch name or address);
+2. downloads each branch's price and promotion files once;
+3. writes `data/cities/<code>.json` (that city's branches and only the products they price, in the same layout as `data.json`) and `data/index.json` (the covered cities with their coordinates).
+
+The page (`render --hosted`) searches [`pricecompare/settlements.json`](pricecompare/settlements.json), every Israeli locality with coordinates, bundled as static JSON. *Use my location* maps the browser's position to the nearest locality. A locality without branches opens the nearest covered city within 15 km and offers the other nearby ones. The chosen city is kept in `localStorage`, and *החלפת עיר* changes it.
+
+To keep Pages small, a city file keeps the 25,000 products priced in the most of its branches (`MAX_PRODUCTS`), plus every generic fresh product. A repo created from the template keeps publishing its own city; set the repository variable `HOSTED=true` to publish the nationwide site instead.
+
+```bash
+python -m pricecompare national          # all chains, all cities: web/data/
+python -m pricecompare render --hosted   # dist/ with the city picker
+```
+
+## Quick start (your own city site)
 
 **Option A: GitHub only (about 5 minutes)**
 
@@ -114,11 +135,15 @@ flowchart LR
 | `pricecompare/build.py` | Builds the compact `data.json` |
 | `pricecompare/site.py` | Renders the branded static site |
 | `pricecompare/wizard.py` | The `init` setup wizard |
+| `pricecompare/nationwide.py` | Hosted mode: places every branch in a locality, writes per-city shards |
+| `pricecompare/settlements.json` | Every Israeli locality: CBS code, names, coordinates (rebuilt by `scripts/make_settlements.py`) |
 
 ## Adding a chain or a portal
 
 - **A chain on a supported portal**: add one line to `CHAINS` in [`pricecompare/chains.py`](pricecompare/chains.py). For Cerberus that is the public username; for Bina, the subdomain prefix and chain ID. Then run `python -m pricecompare init` again to check that it finds branches.
 - **A new portal**: add a class to [`pricecompare/sources.py`](pricecompare/sources.py) with `stores()`, `latest_price_files(ids)` and `latest_promo_files(ids)`, register it in `source_for()`, and add a test with a recorded sample file.
+
+Locality names and codes come from the CBS localities table on data.gov.il. Coordinates come from Wikidata (CC0), joined on the CBS code, because the CBS file with coordinates is not openly downloadable.
 
 ## Legal note about the data
 
