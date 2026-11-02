@@ -8,13 +8,15 @@ Every source exposes the same methods:
 
 import html
 import re
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-
 import requests
 
 from .parse import file_store_and_time, parse_stores
+
+log = logging.getLogger(__name__)
 
 TIMEOUT = 120
 HEADERS = {"User-Agent": "Mozilla/5.0 (price-compare; +https://github.com/Shtibel1/il-basket-compare)"}
@@ -82,13 +84,17 @@ class Shufersal:
 
     def _latest_files(self, cat, store_ids):
         def one(store_id):
-            links = self._links(cat, store_id)
+            try:
+                links = self._links(cat, store_id)
+            except Exception as e:  # one slow branch listing must not sink the whole chain
+                log.warning("shufersal: listing branch %s failed: %s", store_id, e)
+                return store_id, None
             by_name = {u.split("?")[0].rsplit("/", 1)[-1]: u for u in links}
             latest = _latest(by_name).get(store_id)
             return store_id, by_name[latest] if latest else None
 
         # One listing request per branch; run a few at a time (there are 400+ branches).
-        with ThreadPoolExecutor(8) as pool:
+        with ThreadPoolExecutor(6) as pool:
             found = list(pool.map(one, store_ids))
         return {sid: (lambda url=url: _get(self.session, url).content) for sid, url in found if url}
 
