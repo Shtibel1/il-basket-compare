@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="il-basket-compare">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b3d2e"/><stop offset="1" stop-color="#0f5b45"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity=".06"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="300" fill="url(#bg)"/>
+  <rect width="1200" height="300" fill="url(#grid)"/>
+  <g transform="translate(70 70)">
+    <path d="M0 20h28l22 100h104l20-72H44" fill="none" stroke="#ffd233" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="66" cy="148" r="12" fill="#ffd233"/><circle cx="142" cy="148" r="12" fill="#ffd233"/>
+  </g>
+  <text x="300" y="138" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="64" font-weight="800" fill="#ffffff">il-basket-compare</text>
+  <text x="302" y="190" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="26" fill="#d9efe3">Compare a grocery basket across every supermarket in your Israeli city</text>
+  <g font-family="Menlo, monospace" font-size="20" font-weight="600">
+    <rect x="302" y="216" width="170" height="38" rx="6" fill="#ffd233"/><text x="318" y="242" fill="#1d1a0c">18 chains</text>
+    <rect x="488" y="216" width="232" height="38" rx="6" fill="#ffffff" fill-opacity=".12"/><text x="504" y="242" fill="#ffffff">daily · no servers</text>
+    <rect x="736" y="216" width="270" height="38" rx="6" fill="#ffffff" fill-opacity=".12"/><text x="752" y="242" fill="#ffffff">fork → your city</text>
+  </g>
+</svg>
