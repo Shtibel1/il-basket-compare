@@ -1,0 +1,24 @@
+{
+  "region": {
+    "name": "חדרה",
+    "name_en": "Hadera",
+    "city_codes": ["6500"],
+    "names": ["חדרה", "בית אליעזר", "גבעת אולגה"]
+  },
+  "chains": [
+    "shufersal", "carrefour", "ramilevy", "yohananof", "osherad", "keshet", "tivtaam",
+    "doralon", "stopmarket", "politzer", "salachdabach", "freshmarket",
+    "shukhair", "supersapir", "goodpharm", "kingstore", "zolvebegadol", "maayan2000"
+  ],
+  "branding": {
+    "title_prefix": "סל",
+    "title_highlight": "חדרה",
+    "tagline": "בונים סל קניות, ורואים באיזה סופר בחדרה הוא יוצא הכי זול.",
+    "logo": "",
+    "favicon": "",
+    "storage_prefix": "hadera",
+    "colors": {"--accent": "#0f5b45", "--tag": "#ffd233"},
+    "colors_dark": {}
+  },
+  "images": false
+}

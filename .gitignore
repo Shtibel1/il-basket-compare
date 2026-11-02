@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+web/data.json
+web/img/
+.cache/
+dist/

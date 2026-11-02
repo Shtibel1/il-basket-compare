@@ -1,0 +1,65 @@
+name: Update prices and deploy
+
+# Runs on forks and repos created from the template with no secrets:
+# enable Pages (Settings → Pages → Source: GitHub Actions) and run it once.
+on:
+  schedule:
+    - cron: "0 4 * * *"   # daily, ~07:00 Israel time
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["site.config.json", "web/**", "pricecompare/**"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      # Yesterday's snapshot lets stores whose new file isn't out yet keep their prices.
+      - name: Restore the previous price snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: web/data.json
+          key: prices-${{ github.run_id }}
+          restore-keys: prices-
+      - name: Download today's prices
+        run: python -m pricecompare update
+      - uses: actions/cache/save@v4
+        with:
+          path: web/data.json
+          key: prices-${{ github.run_id }}
+      - name: Thumbnails cache (only used when images are on)
+        uses: actions/cache@v4
+        with:
+          path: .cache/thumbs
+          key: thumbs-${{ github.run_id }}
+          restore-keys: thumbs-
+      - run: python -m pricecompare images
+      - run: python -m pricecompare render --out dist
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
