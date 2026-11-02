@@ -9,6 +9,7 @@ Every source exposes the same methods:
 import html
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 import requests
@@ -80,15 +81,16 @@ class Shufersal:
         return self._latest_files(self.CAT_PROMOFULL, store_ids)
 
     def _latest_files(self, cat, store_ids):
-        out = {}
-        for store_id in store_ids:
+        def one(store_id):
             links = self._links(cat, store_id)
             by_name = {u.split("?")[0].rsplit("/", 1)[-1]: u for u in links}
             latest = _latest(by_name).get(store_id)
-            if latest:
-                url = by_name[latest]
-                out[store_id] = lambda url=url: _get(self.session, url).content
-        return out
+            return store_id, by_name[latest] if latest else None
+
+        # One listing request per branch; run a few at a time (there are 400+ branches).
+        with ThreadPoolExecutor(8) as pool:
+            found = list(pool.map(one, store_ids))
+        return {sid: (lambda url=url: _get(self.session, url).content) for sid, url in found if url}
 
 
 class Cerberus:

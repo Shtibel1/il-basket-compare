@@ -78,3 +78,19 @@ def normalize(raw):
         "branding": branding,
         "images": bool(raw.get("images", False)),
     }
+
+
+def hosted():
+    """Config of the hosted nationwide site: every chain, the city is picked on the page."""
+    return normalize({
+        "region": {"name": "ישראל", "name_en": "Israel", "city_codes": [], "names": ["ישראל"]},
+        "chains": "all",
+        "branding": {
+            "title_prefix": "סל",
+            "title_highlight": "בעיר שלך",
+            "tagline": "בוחרים עיר, בונים סל קניות, ורואים באיזה סופר באזור הוא יוצא הכי זול.",
+            "storage_prefix": "il-basket",
+            "colors": {"--accent": "#0f5b45", "--tag": "#ffd233"},
+        },
+        "images": False,
+    })

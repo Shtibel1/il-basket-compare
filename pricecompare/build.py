@@ -53,18 +53,18 @@ def _store_promos(source, files, store_id):
     """Promotions of one store; a missing or broken promo file only costs the deals."""
     fetch = files.get(store_id)
     if not fetch:
-        log.warning("%s store %s: no PromoFull file", source.chain["key"], store_id)
+        log.warning("%s store %s: no PromoFull file", chain["key"], store_id)
         return []
     try:
         return list(promos.parse_promos(fetch()))
     except Exception:
-        log.exception("%s store %s: promotions failed", source.chain["key"], store_id)
+        log.exception("%s store %s: promotions failed", chain["key"], store_id)
         return []
 
 
 def collect_chain(source, region):
     """Return (all region stores, [(store dict, [items], [promos])] for those with a price file)."""
-    key = source.chain["key"]
+    key = chain["key"]
     try:
         stores = {s["store_id"]: s for s in source.stores() if matches_region(s, region)}
         stores = list(stores.values())
@@ -204,8 +204,15 @@ def build(cfg=None, workers=6, previous=None):
     region = cfg["region"]
     sources = list(_sources(cfg["chains"]))
     with ThreadPoolExecutor(workers) as pool:
-        results = list(pool.map(lambda s: (s, collect_chain(s, region)), sources))
+        results = list(pool.map(lambda s: (s.chain, collect_chain(s, region)), sources))
+    return assemble(results, [s.chain for s in sources], region["name"], previous)
 
+
+def assemble(results, chains, region_name, previous=None):
+    """Pack collected prices into the data file layout described at the top.
+
+    results: [(chain dict, (all region stores, [(store, items, raw promos)]))].
+    """
     _merge_internal_codes([items for _, (_, chain_stores) in results for _, items, _ in chain_stores])
     asof = datetime.now(timezone.utc).isoformat(timespec="minutes")
     previous = previous or {}
@@ -215,7 +222,7 @@ def build(cfg=None, workers=6, previous=None):
     info = {}
     stores, store_prices, store_generics, store_promos = [], [], [], []
     now = datetime.now(LOCAL_TZ).replace(tzinfo=None)
-    for source, (region_stores, chain_stores) in results:
+    for chain, (region_stores, chain_stores) in results:
         fresh = {store["store_id"] for store, _, _ in chain_stores}
         for store, items, deals in chain_stores:
             prices = {}
@@ -229,8 +236,8 @@ def build(cfg=None, workers=6, previous=None):
                 info.setdefault(bc, item)
                 prices[bc] = item["price"]
             stores.append({
-                "id": f"{source.chain['key']}-{store['store_id']}",
-                "chain": source.chain["key"],
+                "id": f"{chain['key']}-{store['store_id']}",
+                "chain": chain["key"],
                 "name": store["name"],
                 "address": store["address"],
                 "items": len(prices),
@@ -241,8 +248,8 @@ def build(cfg=None, workers=6, previous=None):
             store_promos.append(match_promos(items, deals, prices, now))
 
         # A store whose file isn't published yet keeps its previous prices.
-        region_ids = {f"{source.chain['key']}-{s['store_id']}" for s in region_stores}
-        stale_ids = {sid for sid, old in previous.items() if old["store"]["chain"] == source.chain["key"]}
+        region_ids = {f"{chain['key']}-{s['store_id']}" for s in region_stores}
+        stale_ids = {sid for sid, old in previous.items() if old["store"]["chain"] == chain["key"]}
         if not region_stores:
             region_ids = stale_ids  # the portal itself failed
         for sid in sorted(region_ids & stale_ids):
@@ -300,8 +307,8 @@ def build(cfg=None, workers=6, previous=None):
 
     return {
         "generated": asof,
-        "region": region["name"],
-        "chains": {s.chain["key"]: s.chain["name"] for s in sources},
+        "region": region_name,
+        "chains": {c["key"]: c["name"] for c in chains},
         "stores": stores,
         "products": products,
         "prices": packed,

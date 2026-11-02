@@ -279,6 +279,27 @@ details.chains-box summary b { color: var(--ink); }
   .row > button, .chip, .hit, .qty button { transition: background-color .15s, color .15s; }
   .gapbar i { transition: width .35s ease; }
 }
+/* Hosted nationwide site: city picker and the current-city bar */
+.picker { max-width: 620px; margin: 36px auto 0; }
+.picker h2 { font-size: clamp(1.6rem, 5vw, 2.1rem); }
+.picker > p { color: var(--muted); margin: 8px 0 18px; }
+.picker .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; box-shadow: var(--shadow); }
+.picker .hit { grid-template-columns: minmax(0, 1fr) auto; }
+.picker .hit .d { grid-column: 1; }
+.picker .hit .go { grid-row: 1 / span 2; grid-column: 2; color: var(--accent); font-weight: 700; font-size: .9rem; }
+.geo { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 12px; padding: 11px 14px; border: 2px solid var(--accent); border-radius: 6px; background: none; color: var(--accent); font-weight: 700; }
+.geo svg { width: 18px; height: 18px; }
+.geo[disabled] { opacity: .6; cursor: progress; }
+.or { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: .85rem; margin: 14px 0 0; }
+.or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.pmsg { margin: 12px 2px 0; font-size: .92rem; color: var(--muted); }
+.pmsg.bad { color: var(--bad); }
+.popular { margin-top: 18px; }
+.citybar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 16px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: .95rem; }
+.citybar .pin { color: var(--accent); width: 18px; height: 18px; flex: none; }
+.citybar .note { flex-basis: 100%; color: var(--muted); font-size: .88rem; }
+.citybar .note .linkbtn { font-size: inherit; padding: 0; }
+.citybar .change { margin-inline-start: auto; }
 /* branding from site.config.json */
 :root { {{brand_css}} }
 .brand h1 .logo { height: .9em; width: auto; vertical-align: -.08em; margin-inline-end: .2em; }
@@ -294,7 +315,35 @@ details.chains-box summary b { color: var(--ink); }
     <div class="meta" id="meta">טוען מחירים…</div>
   </header>
 
-  <div class="layout">
+  <div class="citybar" id="citybar" hidden>
+    <svg class="pin" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"/><circle cx="10" cy="8" r="2.2"/></svg>
+    <span id="city-label"></span>
+    <button class="linkbtn change" id="city-change" type="button">החלפת עיר</button>
+    <span class="note" id="city-note" hidden></span>
+  </div>
+
+  <section class="picker" id="picker" aria-labelledby="picker-title" hidden>
+    <h2 id="picker-title">באיזו עיר אתם קונים?</h2>
+    <p>נראה לכם את הסניפים של כל הרשתות בעיר, ואת המחיר של הסל שלכם בכל אחד מהם.</p>
+    <div class="card">
+      <div class="search">
+        <div class="field">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4 4" stroke-linecap="round"/></svg>
+          <input id="cq" type="search" autocomplete="off" enterkeyhint="go" role="combobox" aria-expanded="false" aria-controls="city-hits" aria-autocomplete="list" aria-label="שם העיר או היישוב" placeholder="שם העיר או היישוב">
+        </div>
+        <ul class="hits" id="city-hits" role="listbox" aria-label="יישובים" hidden></ul>
+      </div>
+      <div class="or">או</div>
+      <button class="geo" id="geo" type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10" cy="10" r="3"/><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" stroke-linecap="round"/><circle cx="10" cy="10" r="6.5"/></svg>השתמשו במיקום שלי</button>
+      <p class="pmsg" id="pmsg" role="status"></p>
+    </div>
+    <div class="popular">
+      <span class="label">ערים עם הכי הרבה סניפים</span>
+      <div class="quick" id="popular"></div>
+    </div>
+  </section>
+
+  <div class="layout" id="app">
     <section class="panel" aria-labelledby="basket-title">
       <div class="panel-head">
         <h2 id="basket-title">הסל שלי</h2>
@@ -873,7 +922,8 @@ details.chains-box summary b { color: var(--ink); }
   }
 
   // ---------- data ----------
-  fetch("data.json").then((r) => {
+  function loadData(url) {
+  return fetch(url).then((r) => {
     if (!r.ok) throw new Error(r.status);
     return r.json();
   }).then((D) => {
@@ -927,8 +977,156 @@ details.chains-box summary b { color: var(--ink); }
     }).catch(() => {});
   }).catch(() => {
     $("meta").textContent = "";
-    $("results").innerHTML = `<p class="status">קובץ המחירים (data.json) לא נטען. הריצו <code>python -m pricecompare update</code> ורעננו את הדף.</p>`;
+    $("results").innerHTML = SITE.hosted
+      ? `<p class="status">המחירים של העיר הזו לא נטענו. נסו לרענן את הדף, או <button class="linkbtn" type="button" data-change-city>לבחור עיר אחרת</button>.</p>`
+      : `<p class="status">קובץ המחירים (data.json) לא נטען. הריצו <code>python -m pricecompare update</code> ורעננו את הדף.</p>`;
   });
+  }
+
+  // ---------- hosted nationwide site: pick a city ----------
+  // index.json lists the cities that have branches; settlements.json has every locality with its coordinates.
+  const KEY_CITY = SITE.storage_prefix + "-city-v1";
+  let CITIES = null, SETTLE = [], COVERED = new Map(), FALLBACK_KM = 15, cityHits = [], cityOn = 0;
+
+  const km = (a, b, c, d) => {
+    const r = Math.PI / 180, x = (d - b) * r * Math.cos(((a + c) / 2) * r), y = (c - a) * r;
+    return Math.sqrt(x * x + y * y) * 6371;
+  };
+  const cityNorm = (s) => norm(s).replace(/[-–()]/g, " ").replace(/קריית/g, "קרית").replace(/\s+/g, " ").trim();
+  // Covered cities nearest to a point, closest first, within FALLBACK_KM.
+  function nearCovered(lat, lon, limit = 3) {
+    if (lat == null) return [];
+    return CITIES.cities.map((c) => [c, km(lat, lon, c[3], c[4])]).filter(([c, d]) => c[3] != null && d <= FALLBACK_KM)
+      .sort((a, b) => a[1] - b[1]).slice(0, limit);
+  }
+  // A settlement code -> {city: the covered city to show, from: the settlement asked for, near: other options}.
+  function resolveCity(code) {
+    code = String(code);
+    if (COVERED.has(code)) return { city: COVERED.get(code), from: null, near: [] };
+    const s = SETTLE.find((x) => x[0] === code);
+    if (!s) return null;
+    const near = nearCovered(s[3], s[4]);
+    return near.length ? { city: near[0][0], dist: near[0][1], from: s, near: near.slice(1) } : { city: null, from: s, near: [] };
+  }
+  function loadIndex() {
+    if (CITIES) return Promise.resolve();
+    return Promise.all([fetch("data/index.json").then((r) => r.json()), fetch("settlements.json").then((r) => r.json())])
+      .then(([idx, settle]) => {
+        CITIES = idx; SETTLE = settle; FALLBACK_KM = idx.fallback_km || 15;
+        COVERED = new Map(idx.cities.map((c) => [c[0], c]));
+        const pop = [...idx.cities].sort((a, b) => b[5] - a[5]).slice(0, 10);
+        $("popular").innerHTML = pop.map((c) => `<button type="button" data-city="${c[0]}">${esc(c[1])}</button>`).join("");
+      });
+  }
+  function choose(code) {
+    const r = CITIES && resolveCity(code);
+    if (r && !r.city) {
+      $("pmsg").textContent = `אין סניפים ב${r.from[1]} ובטווח ${FALLBACK_KM} ק״מ ממנו. נסו עיר קרובה.`; $("pmsg").classList.add("bad");
+      return;
+    }
+    try { localStorage.setItem(KEY_CITY, String(code)); } catch {}
+    const u = new URL(location.href); u.searchParams.set("city", code); location.href = u.toString();
+  }
+  function showPicker(msg = "", bad = false) {
+    $("picker").hidden = false; $("app").hidden = true; $("citybar").hidden = true;
+    $("meta").textContent = "";
+    $("pmsg").textContent = msg; $("pmsg").classList.toggle("bad", bad);
+    $("dock").hidden = true;
+    loadIndex().then(() => $("cq").focus({ preventScroll: true })).catch(() => {
+      $("pmsg").textContent = "רשימת הערים לא נטענה. נסו לרענן את הדף."; $("pmsg").classList.add("bad");
+    });
+  }
+  function cityDesc(s) {
+    const c = COVERED.get(s[0]);
+    if (c) return `<span class="num">${c[5]}</span> סניפים · <span class="num">${c[6]}</span> רשתות`;
+    const near = nearCovered(s[3], s[4], 1);
+    return near.length ? `אין סניפים ביישוב. הכי קרוב: ${esc(near[0][0][1])} (<span class="num">${near[0][1].toFixed(0)}</span> ק״מ)` : `אין סניפים בטווח ${FALLBACK_KM} ק״מ`;
+  }
+  function renderCityHits() {
+    const q = cityNorm($("cq").value);
+    const list = $("city-hits");
+    if (!q || !CITIES) { list.hidden = true; $("cq").setAttribute("aria-expanded", "false"); cityHits = []; return; }
+    const scored = [];
+    for (const s of SETTLE) {
+      const he = cityNorm(s[1]), en = cityNorm(s[2] || "");
+      let rank = he.startsWith(q) || en.startsWith(q) ? 0 : (" " + he).includes(" " + q) ? 1 : he.includes(q) || en.includes(q) ? 2 : -1;
+      if (rank < 0) continue;
+      if (!COVERED.has(s[0])) rank += nearCovered(s[3], s[4], 1).length ? 0.3 : 0.6;
+      scored.push([rank, -(COVERED.get(s[0])?.[5] || 0), s]);
+    }
+    scored.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2][1].length - b[2][1].length);
+    cityHits = scored.slice(0, 8).map((x) => x[2]);
+    cityOn = Math.min(cityOn, Math.max(0, cityHits.length - 1));
+    list.innerHTML = cityHits.length ? cityHits.map((s, k) => `<li class="hit${k === cityOn ? " on" : ""}" id="ch-${k}" role="option" aria-selected="${k === cityOn}" data-city="${s[0]}">
+        <span class="n">${esc(s[1])}</span><span class="d">${cityDesc(s)}</span><span class="go" aria-hidden="true">בחירה ←</span></li>`).join("")
+      : `<li class="hit" aria-disabled="true"><span class="n">לא מצאנו יישוב בשם הזה</span></li>`;
+    list.hidden = false; $("cq").setAttribute("aria-expanded", "true");
+    $("cq").setAttribute("aria-activedescendant", cityHits.length ? `ch-${cityOn}` : "");
+  }
+  function locate() {
+    if (!navigator.geolocation) { $("pmsg").textContent = "הדפדפן לא תומך באיתור מיקום. חפשו את העיר בשם."; return; }
+    $("geo").disabled = true; $("pmsg").classList.remove("bad"); $("pmsg").textContent = "מאתרים את המיקום…";
+    navigator.geolocation.getCurrentPosition((pos) => {
+      loadIndex().then(() => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        let best = null, bd = Infinity;
+        for (const s of SETTLE) {
+          if (s[3] == null) continue;
+          const d = km(lat, lon, s[3], s[4]);
+          if (d < bd) { bd = d; best = s; }
+        }
+        $("geo").disabled = false;
+        if (!best || bd > 30) { $("pmsg").textContent = "נראה שאתם מחוץ לישראל. חפשו את העיר בשם."; $("pmsg").classList.add("bad"); return; }
+        const r = resolveCity(best[0]);
+        if (!r || !r.city) { $("pmsg").textContent = `המיקום שלכם: ${best[1]}. אין סניפים בטווח ${FALLBACK_KM} ק״מ.`; $("pmsg").classList.add("bad"); return; }
+        $("pmsg").textContent = `המיקום שלכם: ${best[1]}`;
+        choose(best[0]);
+      });
+    }, (err) => {
+      $("geo").disabled = false; $("pmsg").classList.add("bad");
+      $("pmsg").textContent = err.code === 1 ? "לא קיבלנו הרשאה למיקום. אפשר לחפש את העיר בשם." : "לא הצלחנו לאתר את המיקום. חפשו את העיר בשם.";
+    }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 });
+  }
+  function openCity(code) {
+    loadIndex().then(() => {
+      const r = resolveCity(code);
+      if (!r) return showPicker("לא מצאנו את היישוב הזה. חפשו את העיר בשם.", true);
+      if (!r.city) return showPicker(`אין סניפים ב${r.from[1]} ובטווח ${FALLBACK_KM} ק״מ ממנו. נסו עיר קרובה.`, true);
+      const c = r.city;
+      try { localStorage.setItem(KEY_CITY, String(code)); } catch {}
+      $("picker").hidden = true; $("app").hidden = false; $("citybar").hidden = false;
+      const hl = document.querySelector(".brand h1 span"); if (hl) hl.textContent = c[1];
+      document.title = `סל ${c[1]}`;
+      $("city-label").innerHTML = `מציגים סניפים ב<b>${esc(c[1])}</b>`;
+      if (r.from) {
+        const others = r.near.map(([o, d]) => `<button class="linkbtn" type="button" data-city="${o[0]}">${esc(o[1])}</button> (<span class="num">${d.toFixed(0)}</span> ק״מ)`).join(", ");
+        $("city-note").innerHTML = `אין סניפים ב${esc(r.from[1])}, אז מציגים את העיר הקרובה ביותר (<span class="num">${r.dist.toFixed(0)}</span> ק״מ).` + (others ? ` עוד קרובות: ${others}.` : "");
+        $("city-note").hidden = false;
+      }
+      return loadData(`data/cities/${c[0]}.json`);
+    }).catch(() => showPicker("רשימת הערים לא נטענה. נסו לרענן את הדף.", true));
+  }
+
+  if (!SITE.hosted) loadData("data.json");
+  else {
+    $("cq").addEventListener("input", () => { cityOn = 0; renderCityHits(); });
+    $("cq").addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); cityOn = (cityOn + (e.key === "ArrowDown" ? 1 : -1) + cityHits.length) % Math.max(1, cityHits.length); renderCityHits(); }
+      else if (e.key === "Enter") { e.preventDefault(); if (cityHits[cityOn]) choose(cityHits[cityOn][0]); }
+      else if (e.key === "Escape") { $("cq").value = ""; renderCityHits(); }
+    });
+    $("geo").addEventListener("click", locate);
+    $("city-change").addEventListener("click", () => showPicker());
+    document.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-city]");
+      if (t) { e.preventDefault(); choose(t.dataset.city); return; }
+      if (e.target.closest("[data-change-city]")) showPicker();
+    });
+    let start = new URLSearchParams(location.search).get("city");
+    if (!start) { try { start = localStorage.getItem(KEY_CITY); } catch {} }
+    if (start && /^\d+$/.test(start)) openCity(start);
+    else showPicker();
+  }
 })();
 </script>
 </body>
