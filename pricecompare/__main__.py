@@ -6,6 +6,7 @@
     python -m pricecompare serve  [--port 8000]
     python -m pricecompare national [--out web/data] [--skip-download]   (hosted nationwide site)
     python -m pricecompare render --hosted [--out dist]
+    python -m pricecompare report [--hosted] [--data PATH] [--max-age-hours 36] [--summary-file F] [--strict]
 """
 
 import argparse
@@ -40,6 +41,12 @@ def main(argv=None):
     na.add_argument("--out", default=os.path.join(WEB_DIR, "data"))
     na.add_argument("--cache", default=os.path.join(ROOT, ".cache", "national"))
     na.add_argument("--skip-download", action="store_true", help="only re-shard what is already cached")
+    rp = sub.add_parser("report", help="per-chain coverage and freshness report of the price data")
+    rp.add_argument("--hosted", action="store_true", help="report on the nationwide data/ shards")
+    rp.add_argument("--data", help="data.json (default web/data.json) or, with --hosted, the data/ directory")
+    rp.add_argument("--max-age-hours", type=float, default=36, help="branches older than this are stale")
+    rp.add_argument("--summary-file", help="also append the Markdown report here (e.g. $GITHUB_STEP_SUMMARY)")
+    rp.add_argument("--strict", action="store_true", help="exit 1 when there are warnings")
     sv = sub.add_parser("serve", help="render and serve the site locally")
     sv.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
@@ -51,6 +58,14 @@ def main(argv=None):
         from . import nationwide
         nationwide.main(args.out, args.cache, skip_download=args.skip_download)
         return 0
+    if args.cmd == "report":
+        from . import report
+        path = args.data or os.path.join(WEB_DIR, "data" if args.hosted else "data.json")
+        if not os.path.exists(path):
+            print(f"no price data at {path}; run update (or national) first", file=sys.stderr)
+            return 2
+        return report.main(path, hosted_mode=args.hosted, max_age_hours=args.max_age_hours,
+                           summary_file=args.summary_file, strict=args.strict)
     if args.cmd == "render" and args.hosted:
         from . import site
         print(site.render(config.hosted(), args.out, hosted=True))

@@ -104,6 +104,16 @@ Wrote site.config.json: 13 chains, 42 branches.
 
 `python -m pricecompare render` fills the branding into `web/index.html` and writes the finished site to `dist/`. Every CSS variable in the page (`--accent`, `--tag`, `--ground`, …) can be overridden.
 
+## Data-quality report
+
+Price portals change and branches go quiet without an error. After every update the daily job runs `python -m pricecompare report` and writes a per-chain table to the Actions run summary: branches, stale branches, median and minimum products priced per branch, promotion offers and (in hosted mode) cities covered. A configured chain with no branches, a chain whose every branch is stale, and city files missing from `index.json` are listed as warnings.
+
+```bash
+python -m pricecompare report                        # web/data.json (single-city site)
+python -m pricecompare report --hosted               # web/data/ shards (nationwide site)
+python -m pricecompare report --max-age-hours 24 --strict   # exit 1 on any warning, e.g. in your own CI
+```
+
 ## Architecture
 
 ```mermaid
