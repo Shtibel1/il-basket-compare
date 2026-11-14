@@ -19,7 +19,7 @@ import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
-from .chains import BY_KEY
+from .chains import BY_KEY, CHAINS
 
 
 @dataclass
@@ -115,7 +115,9 @@ def hosted(data_dir, now=None, max_age_hours=36):
     now = now or datetime.now(timezone.utc)
     with open(os.path.join(data_dir, "index.json"), encoding="utf-8") as f:
         index = json.load(f)
-    stats, stale, size, missing = {}, 0, 0, []
+    # The nationwide job reads every known chain, so one that placed no branch is a gap.
+    stats = {c["key"]: ChainStats(c["key"], c["name"]) for c in CHAINS}
+    stale, size, missing = 0, 0, []
     for code, *_rest in index.get("cities", []):
         path = os.path.join(data_dir, "cities", f"{code}.json")
         if not os.path.exists(path):

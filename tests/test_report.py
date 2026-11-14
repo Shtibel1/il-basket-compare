@@ -91,6 +91,11 @@ class HostedTest(unittest.TestCase):
         self.assertEqual(rep.chains["shufersal"].cities, {"6500", "7400"})
         self.assertGreater(rep.size_bytes, 0)
 
+    def test_a_known_chain_absent_from_every_city_is_a_warning(self):
+        rep = report.hosted(self.dir, now=NOW)
+        self.assertEqual(rep.chains["carrefour"].branches, 0)
+        self.assertTrue(any("carrefour" in w and "no branches" in w for w in rep.warnings))
+
     def test_warns_when_the_index_points_at_a_missing_city_file(self):
         rep = report.hosted(self.dir, now=NOW)
         self.assertTrue(any("5000" in w for w in rep.warnings))
