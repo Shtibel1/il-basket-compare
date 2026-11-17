@@ -29,8 +29,8 @@ jobs:
       # they set the repository variable HOSTED to true.
       HOSTED: ${{ github.repository == 'Shtibel1/il-basket-compare' || vars.HOSTED == 'true' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -54,7 +54,7 @@ jobs:
       # Yesterday's snapshot lets stores whose new file isn't out yet keep their prices.
       - name: Restore the previous price snapshot
         if: env.HOSTED != 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: web/data.json
           key: prices-${{ github.run_id }}
@@ -63,13 +63,13 @@ jobs:
         if: env.HOSTED != 'true'
         run: python -m pricecompare update
       - if: env.HOSTED != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: web/data.json
           key: prices-${{ github.run_id }}
       - name: Thumbnails cache (only used when images are on)
         if: env.HOSTED != 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache/thumbs
           key: thumbs-${{ github.run_id }}
@@ -82,7 +82,7 @@ jobs:
         if: env.HOSTED != 'true'
         run: python -m pricecompare report --summary-file "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -94,4 +94,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
